@@ -83,10 +83,10 @@ export default function Index() {
 
   // --- Refs for scrolling ---
   const scrollViewRef = useRef<ScrollView>(null);
-  const infoCardRef = useRef<View>(null); // Renamed from summaryRef
+  const infoCardRef = useRef<View>(null);
   const [infoCardYPosition, setInfoCardYPosition] = useState<number | null>(
     null
-  ); // Renamed from summaryYPosition
+  );
 
   // --- Helper Functions and Effects ---
 
@@ -102,21 +102,20 @@ export default function Index() {
       ) {
         return 0;
       }
-      return loan * (rate / 100) * numMonths;
+      const calculated = loan * (rate / 100) * numMonths;
+      return calculated;
     },
     []
   );
 
   const generateTableData = useCallback(() => {
     const data = [];
-    // Ensure loanAmount, interestRatePerMonth, and months are defined and valid numbers
     if (
       loanAmount !== undefined &&
       interestRatePerMonth !== undefined &&
       months !== undefined &&
       months >= 1
     ) {
-      // Calculate the actual months to show, rounding up to the nearest 12, capped at 360
       const actualMonthsToShow = Math.min(Math.ceil(months / 12) * 12, 360);
 
       for (let i = 1; i <= actualMonthsToShow; i++) {
@@ -137,15 +136,13 @@ export default function Index() {
 
   const tableData = generateTableData();
 
-  // Calculate the total loan amount for the info card (this is for the full term)
-  const totalLoanAmountCalculated =
-    tableData.length > 0 ? tableData[tableData.length - 1].totalAmount : 0;
-
   const getSelectedMonthSummary = useCallback(() => {
     if (selectedMonth === null) {
-      return null;
+      // If no month is selected, default to the first month in the tableData
+      return tableData.length > 0 ? tableData[0] : null;
     }
-    return tableData.find((item) => item.month === selectedMonth);
+    const summary = tableData.find((item) => item.month === selectedMonth);
+    return summary;
   }, [selectedMonth, tableData]);
 
   const summaryData = getSelectedMonthSummary();
@@ -188,17 +185,21 @@ export default function Index() {
   }, [setValue]);
 
   // Unified effect to manage selectedMonth
-  // This ensures selectedMonth always defaults to the 'months' form value
-  // whenever any main input changes, resetting any manual selection.
   useEffect(() => {
     if (months !== undefined) {
       setSelectedMonth(months);
     } else {
       setSelectedMonth(null);
     }
-  }, [months, loanAmount, interestRatePerMonth]); // Depend on all inputs that affect calculations/table
+  }, [months, loanAmount, interestRatePerMonth]);
 
   // --- Event Handlers ---
+  const handleLoanAmountChange = (text: string) => {
+    const num = parseFloat(text);
+    setValue("loanAmount", isNaN(num) ? undefined : num, {
+      shouldValidate: true,
+    });
+  };
 
   const handleMonthsDecrement = () => {
     const newMonths = Math.max(1, (months || 0) - 1);
@@ -264,13 +265,13 @@ export default function Index() {
 
   // --- Handle Row Click and Scroll ---
   const handleRowClick = (month: number) => {
-    setSelectedMonth(month); // This allows manual selection
+    setSelectedMonth(month);
+    setValue("months", month);
     if (
-      infoCardRef.current && // Use infoCardRef
+      infoCardRef.current &&
       scrollViewRef.current &&
-      infoCardYPosition !== null // Use infoCardYPosition
+      infoCardYPosition !== null
     ) {
-      // Scroll to the measured Y position of the combined info card
       scrollViewRef.current.scrollTo({
         y: infoCardYPosition,
         animated: true,
@@ -286,10 +287,7 @@ export default function Index() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        ref={scrollViewRef} // Assign ref to ScrollView
-        contentContainerStyle={styles.container}
-      >
+      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container}>
         <Text style={styles.title}>Loan Calculator</Text>
 
         {/* Loan Amount Input */}
@@ -298,15 +296,17 @@ export default function Index() {
           <Controller
             control={control}
             name="loanAmount"
-            render={({ field }) => (
+            render={(
+              { field: { onBlur, value } } // Destructure field to get onBlur and value
+            ) => (
               <TextInput
-                {...field}
                 placeholder="e.g., 1000"
                 keyboardType="numeric"
                 value={
-                  field.value !== undefined ? String(field.value) : undefined
+                  value !== undefined && value !== null ? String(value) : ""
                 }
-                onBlur={field.onBlur}
+                onChangeText={handleLoanAmountChange} // Use custom handler
+                onBlur={onBlur} // Keep onBlur from field
                 style={[styles.input, errors.loanAmount && styles.inputError]}
               />
             )}
@@ -326,8 +326,8 @@ export default function Index() {
               onChangeText={handleMonthsTextChange}
               onBlur={handleMonthsBlur}
               style={[
-                styles.input, // Re-use general input style
-                styles.monthInput, // Add specific adjustments
+                styles.input,
+                styles.monthInput,
                 errors.months && styles.inputError,
               ]}
             />
@@ -379,7 +379,7 @@ export default function Index() {
 
         {/* --- Combined Loan Info Card --- */}
         <View
-          ref={infoCardRef} // Assign ref to the combined info card
+          ref={infoCardRef}
           onLayout={(event) => {
             if (infoCardYPosition === null) {
               setInfoCardYPosition(event.nativeEvent.layout.y);
@@ -391,7 +391,7 @@ export default function Index() {
           {summaryData && (
             <>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Principal Loan:</Text>
+                <Text style={styles.infoLabel}>Loan:</Text>
                 <Text style={styles.infoValue}>
                   {currencyFormat(loanAmount)}
                 </Text>
@@ -456,7 +456,7 @@ export default function Index() {
                 styles.tableRow,
                 selectedMonth === row.month && styles.selectedTableRow,
               ]}
-              onPress={() => handleRowClick(row.month)} // Call handleRowClick
+              onPress={() => handleRowClick(row.month)}
             >
               <Text style={styles.tableCell}>{row.month}</Text>
               <Text style={styles.tableCell}>
@@ -529,7 +529,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "bold",
-    marginBottom: 30,
+    marginBottom: 15,
     color: "#333",
   },
   inputGroup: {
