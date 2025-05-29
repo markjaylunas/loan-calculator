@@ -62,7 +62,6 @@ export default function Index() {
   } = useForm<LoanForm>({
     resolver: zodResolver(loanFormSchema),
     defaultValues: {
-      loanAmount: 0,
       months: 1,
       interestRatePerMonth: 10,
     },
@@ -196,9 +195,7 @@ export default function Index() {
   // --- Event Handlers ---
   const handleLoanAmountChange = (text: string) => {
     const num = parseFloat(text);
-    setValue("loanAmount", isNaN(num) ? undefined : num, {
-      shouldValidate: true,
-    });
+    setValue("loanAmount", isNaN(num) ? undefined : num);
   };
 
   const handleMonthsDecrement = () => {
@@ -296,11 +293,9 @@ export default function Index() {
           <Controller
             control={control}
             name="loanAmount"
-            render={(
-              { field: { onBlur, value } } // Destructure field to get onBlur and value
-            ) => (
+            render={({ field: { onBlur, value } }) => (
               <TextInput
-                placeholder="e.g., 1000"
+                placeholder="ex. 1000"
                 keyboardType="numeric"
                 value={
                   value !== undefined && value !== null ? String(value) : ""
