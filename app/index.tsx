@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
+  Keyboard,
   Modal,
   Platform,
   SafeAreaView,
@@ -16,6 +17,7 @@ import {
 } from "react-native";
 import { z } from "zod";
 
+// Moved currencyFormat function outside to be accessible
 function currencyFormat(value: number | undefined) {
   if (value === undefined || isNaN(value)) {
     return "₱ 0.00";
@@ -27,6 +29,22 @@ function currencyFormat(value: number | undefined) {
   }).format(value);
 
   return `₱ ${stringValue}`;
+}
+
+// New utility function for formatting numbers with commas (no currency symbol here)
+function formatNumberWithCommas(value: number | string | undefined) {
+  if (value === undefined || value === null || value === "") {
+    return "";
+  }
+  const num = parseFloat(String(value).replace(/,/g, "")); // Remove existing commas before parsing
+  if (isNaN(num)) {
+    return "";
+  }
+  return new Intl.NumberFormat("en-US", {
+    style: "decimal",
+    minimumFractionDigits: 0, // Initially no fraction digits
+    maximumFractionDigits: 2, // Allow up to 2 decimal places
+  }).format(num);
 }
 
 // Zod schema for form validation
@@ -62,6 +80,7 @@ export default function Index() {
   } = useForm<LoanForm>({
     resolver: zodResolver(loanFormSchema),
     defaultValues: {
+      loanAmount: undefined, // Changed to undefined for initial empty state
       months: 1,
       interestRatePerMonth: 10,
     },
@@ -79,6 +98,11 @@ export default function Index() {
   const [modalInterestRate, setModalInterestRate] = useState<
     number | undefined
   >(undefined);
+
+  // New state for the formatted loan amount display
+  const [formattedLoanAmount, setFormattedLoanAmount] = useState<string>("");
+  const loanAmountInputRef = useRef<TextInput>(null); // Ref to the TextInput
+  const [cursorPosition, setCursorPosition] = useState<number | null>(null); // State for cursor position
 
   // --- Refs for scrolling ---
   const scrollViewRef = useRef<ScrollView>(null);
@@ -192,10 +216,91 @@ export default function Index() {
     }
   }, [months, loanAmount, interestRatePerMonth]);
 
+  // Effect to update formattedLoanAmount when loanAmount changes (e.g., on initial load or reset)
+  // This helps keep the displayed value in sync with the internal numeric value.
+  useEffect(() => {
+    if (loanAmount !== undefined && !isNaN(loanAmount)) {
+      setFormattedLoanAmount(formatNumberWithCommas(loanAmount));
+    } else {
+      setFormattedLoanAmount("");
+    }
+  }, [loanAmount]); // Only run when loanAmount (the number from RHF) changes
+
   // --- Event Handlers ---
   const handleLoanAmountChange = (text: string) => {
-    const num = parseFloat(text);
+    // Save current cursor position before text changes
+    const previousCursorPosition = cursorPosition;
+
+    // Remove all non-digit and non-decimal characters, then parse
+    let cleanText = text.replace(/[^0-9.]/g, "");
+
+    // Handle multiple decimal points
+    const parts = cleanText.split(".");
+    if (parts.length > 2) {
+      cleanText = parts[0] + "." + parts.slice(1).join("");
+    }
+
+    // Update the displayed formatted text first
+    setFormattedLoanAmount(cleanText); // Temporarily unformatted
+
+    // Convert to number for react-hook-form state
+    const num = parseFloat(cleanText);
     setValue("loanAmount", isNaN(num) ? undefined : num);
+
+    // After updating the state, re-format the clean text for display, then adjust cursor
+    requestAnimationFrame(() => {
+      // Use requestAnimationFrame to ensure layout has updated
+      const newFormattedText = formatNumberWithCommas(num);
+      setFormattedLoanAmount(newFormattedText);
+
+      if (loanAmountInputRef.current && previousCursorPosition !== null) {
+        const originalLength = text.length;
+        const newLength = newFormattedText.length;
+        const lengthDiff = newLength - originalLength;
+
+        // Attempt to adjust cursor position. This is an approximation
+        let newCursorPosition = previousCursorPosition + lengthDiff;
+
+        // Check if the original text had a comma at the cursor position (moved cursor)
+        const originalTextBeforeCursor = text.substring(
+          0,
+          previousCursorPosition
+        );
+        const commasInOriginal = (originalTextBeforeCursor.match(/,/g) || [])
+          .length;
+        const newTextBeforeCursor = newFormattedText.substring(
+          0,
+          newCursorPosition
+        );
+        const commasInNew = (newTextBeforeCursor.match(/,/g) || []).length;
+
+        // If a comma was added before the cursor, shift cursor right
+        if (commasInNew > commasInOriginal) {
+          newCursorPosition++;
+        }
+        // If a comma was removed before the cursor, shift cursor left
+        else if (commasInNew < commasInOriginal) {
+          newCursorPosition--;
+        }
+
+        // Ensure cursor stays within bounds
+        newCursorPosition = Math.max(0, Math.min(newCursorPosition, newLength));
+
+        loanAmountInputRef.current.setNativeProps({
+          selection: { start: newCursorPosition, end: newCursorPosition },
+        });
+      }
+    });
+  };
+
+  const handleLoanAmountFocus = (event: any) => {
+    // When focused, we might want to temporarily remove formatting or ensure full string is visible
+    // For now, keep the formatted string, but future enhancement could be to show raw number on focus.
+    // However, handling cursor position is paramount if we leave it formatted.
+  };
+
+  const handleLoanAmountSelectionChange = (event: any) => {
+    setCursorPosition(event.nativeEvent.selection.start);
   };
 
   const handleMonthsDecrement = () => {
@@ -234,6 +339,7 @@ export default function Index() {
   const handleSaveInterestRate = () => {
     if (modalInterestRate !== undefined && !isNaN(modalInterestRate)) {
       saveCustomInterestRate(modalInterestRate);
+      Keyboard.dismiss(); // Dismiss keyboard on save
     } else {
       Alert.alert(
         "Invalid Input",
@@ -245,6 +351,7 @@ export default function Index() {
   const handleCloseInterestRateModal = () => {
     setModalInterestRate(interestRatePerMonth);
     setShowInterestRateModal(false);
+    Keyboard.dismiss(); // Dismiss keyboard on cancel/close
   };
 
   // --- Handle Row Click and Scroll ---
@@ -284,15 +391,18 @@ export default function Index() {
           <Controller
             control={control}
             name="loanAmount"
-            render={({ field: { onBlur, value } }) => (
+            render={(
+              { field: { onBlur } } // We no longer use field.value or field.onChange directly
+            ) => (
               <TextInput
+                ref={loanAmountInputRef} // Assign the ref
                 placeholder="ex. 1000"
                 keyboardType="numeric"
-                value={
-                  value !== undefined && value !== null ? String(value) : ""
-                }
-                onChangeText={handleLoanAmountChange} // Use custom handler
-                onBlur={onBlur} // Keep onBlur from field
+                value={formattedLoanAmount} // Use the formatted state value
+                onChangeText={handleLoanAmountChange} // Use our custom handler
+                onBlur={onBlur} // Keep onBlur from field (for Zod validation)
+                onFocus={handleLoanAmountFocus}
+                onSelectionChange={handleLoanAmountSelectionChange} // Capture cursor position
                 style={[styles.input, errors.loanAmount && styles.inputError]}
               />
             )}
@@ -478,6 +588,18 @@ export default function Index() {
                     : ""
                 }
                 onChangeText={handleModalInterestRateTextChange}
+                onBlur={() => {
+                  let currentRate = modalInterestRate;
+                  if (
+                    isNaN(currentRate || 0) ||
+                    currentRate === undefined ||
+                    (currentRate || 0) < 0.1
+                  ) {
+                    setModalInterestRate(0.1);
+                  } else if ((currentRate || 0) > 100) {
+                    setModalInterestRate(100);
+                  }
+                }} // Re-added onBlur for modal
                 autoFocus={true}
                 style={[styles.input, styles.modalInput]}
               />
