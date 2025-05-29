@@ -396,9 +396,10 @@ export default function Index() {
                 </Text>
               </View>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>
-                  Total Loan (incl. interest):
-                </Text>
+                <View style={styles.infoLabelContainer}>
+                  <Text style={styles.infoLabel}>Total Loan</Text>
+                  <Text style={styles.infoDownlight}>(incl. interest)</Text>
+                </View>
                 <Text style={styles.infoValue}>
                   {currencyFormat(summaryData.totalAmount)}
                 </Text>
@@ -647,8 +648,17 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 10, // Space between rows
   },
+  infoLabelContainer: {
+    flexDirection: "column",
+    gap: 0,
+  },
   infoLabel: {
     fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+  },
+  infoDownlight: {
+    fontSize: 14,
     fontWeight: "600",
     color: "#333",
   },
