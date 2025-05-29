@@ -284,7 +284,11 @@ export default function Index() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container}>
+      <ScrollView
+        ref={scrollViewRef}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="always"
+      >
         <Text style={styles.title}>Loan Calculator</Text>
 
         {/* Loan Amount Input */}
@@ -487,6 +491,7 @@ export default function Index() {
                 }
                 onChangeText={handleModalInterestRateTextChange}
                 onBlur={handleModalInterestRateBlur}
+                autoFocus={true}
                 style={[styles.input, styles.modalInput]}
               />
               <View style={styles.modalButtons}>
