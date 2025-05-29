@@ -591,11 +591,8 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   interestRateDisplay: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    padding: 15,
+    paddingHorizontal: 10,
+    paddingVertical: 0,
     flex: 1,
     marginRight: 10,
   },
