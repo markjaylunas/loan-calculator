@@ -680,11 +680,10 @@ const styles = StyleSheet.create({
     borderBottomColor: "#e0e0e0",
   },
   tableHeaderText: {
-    flex: 1,
-    textAlign: "center",
+    paddingHorizontal: 4,
     fontWeight: "bold",
     color: "#555",
-    fontSize: 14,
+    fontSize: 12,
   },
   tableRow: {
     flexDirection: "row",
@@ -699,9 +698,9 @@ const styles = StyleSheet.create({
     borderLeftColor: "#007bff",
   },
   tableCell: {
-    flex: 1,
+    paddingHorizontal: 8,
     textAlign: "center",
-    fontSize: 14,
+    fontSize: 12,
     color: "#333",
   },
   // New styles for the combined info card's summary part
