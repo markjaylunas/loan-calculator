@@ -231,19 +231,6 @@ export default function Index() {
     setModalInterestRate(isNaN(num) ? undefined : num);
   };
 
-  const handleModalInterestRateBlur = () => {
-    let currentRate = modalInterestRate;
-    if (
-      isNaN(currentRate || 0) ||
-      currentRate === undefined ||
-      (currentRate || 0) < 0.1
-    ) {
-      setModalInterestRate(0.1);
-    } else if ((currentRate || 0) > 100) {
-      setModalInterestRate(100);
-    }
-  };
-
   const handleSaveInterestRate = () => {
     if (modalInterestRate !== undefined && !isNaN(modalInterestRate)) {
       saveCustomInterestRate(modalInterestRate);
@@ -491,7 +478,6 @@ export default function Index() {
                     : ""
                 }
                 onChangeText={handleModalInterestRateTextChange}
-                onBlur={handleModalInterestRateBlur}
                 autoFocus={true}
                 style={[styles.input, styles.modalInput]}
               />
